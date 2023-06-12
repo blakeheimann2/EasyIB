@@ -27,6 +27,22 @@ class REST:
         self.ssl = ssl
         self.id = self.get_accounts()[0]["accountId"]
 
+    def validate_sso_session(self):
+        endpoint = "sso/validate"
+        headers = {'Accept': 'application/json'}
+        try:
+            response = requests.get(self.url + endpoint, headers=headers)
+            if response.status_code == 200:
+                result = response.json()
+                # Process the response data as needed
+                return result
+            else:
+                print(f"Request failed with status code: {response.status_code}")
+        except requests.RequestException as e:
+            print(f"Request failed: {str(e)}")
+
+        return None
+
     def get_accounts(self) -> list:
         """Returns account info
 
@@ -144,6 +160,217 @@ class REST:
         dic = {item["contractDesc"]: item["position"] for item in response.json()}
         dic["USD"] = self.get_cash()
         return dic
+
+    def get_portfolio_accounts(self) -> list:
+        """Returns a list of portfolio accounts
+
+        :return: List of portfolio accounts
+        :rtype: list
+        """
+        response = requests.get(f"{self.url}portfolio/accounts", verify=self.ssl)
+        return response.json()
+
+    def get_portfolio_subaccounts(self) -> list:
+        """Returns a list of portfolio sub-accounts
+
+        :return: List of portfolio sub-accounts
+        :rtype: list
+        """
+        response = requests.get(f"{self.url}portfolio/subaccounts", verify=self.ssl)
+        return response.json()
+
+    def get_account_info(self, accountId: str) -> dict:
+        """Returns account information for the specified account ID
+
+        :param accountId: Account ID
+        :type accountId: str
+        :return: Account information
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}portfolio/{accountId}/meta", verify=self.ssl)
+        return response.json()
+
+    def get_account_summary(self, accountId: str) -> dict:
+        """Returns account summary for the specified account ID
+
+        :param accountId: Account ID
+        :type accountId: str
+        :return: Account summary
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}portfolio/{accountId}/summary", verify=self.ssl)
+        return response.json()
+
+    def get_account_ledger(self, accountId: str) -> dict:
+        """Returns account ledger for the specified account ID
+
+        :param accountId: Account ID
+        :type accountId: str
+        :return: Account ledger
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}portfolio/{accountId}/ledger", verify=self.ssl)
+        return response.json()
+
+    def get_brokerage_accounts(self) -> dict:
+        """Returns a list of brokerage accounts
+
+        :return: Brokerage account information
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}iserver/accounts", verify=self.ssl)
+        return response.json()
+
+    def switch_account(self, accountId: str) -> dict:
+        """Switches the currently selected account to the specified account ID
+
+        :param accountId: Account ID
+        :type accountId: str
+        :return: Response with updated account ID
+        :rtype: dict
+        """
+        data = {
+            "acctId": accountId
+        }
+        response = requests.post(f"{self.url}iserver/account", json=data, verify=self.ssl)
+        return response.json()
+
+    def get_account_pnl(self) -> dict:
+        """Returns the PnL for the selected account
+
+        :return: Account PnL
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}iserver/account/pnl/partitioned", verify=self.ssl)
+        return response.json()
+
+    def get_account_allocation(self, accountId: str) -> dict:
+        """Returns account allocation for the specified account ID
+
+        :param accountId: Account ID
+        :type accountId: str
+        :return: Account allocation
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}portfolio/{accountId}/allocation", verify=self.ssl)
+        return response.json()
+
+    def get_all_accounts_allocation(self, accountIds: list) -> dict:
+        """Returns consolidated account allocation for all specified account IDs
+
+        :param accountIds: List of account IDs
+        :type accountIds: list
+        :return: Consolidated account allocation
+        :rtype: dict
+        """
+        data = {
+            "acctIds": accountIds
+        }
+        response = requests.post(f"{self.url}portfolio/allocation", json=data, verify=self.ssl)
+        return response.json()
+
+    def get_portfolio_positions(self, accountId: str, pageId: str) -> dict:
+        """Returns a list of positions for the specified account ID and page ID
+
+        :param accountId: Account ID
+        :type accountId: str
+        :param pageId: Page ID
+        :type pageId: str
+        :return: List of positions
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}portfolio/{accountId}/positions/{pageId}", verify=self.ssl)
+        return response.json()
+
+    def get_position_by_conid(self, accountId: str, conid: int) -> dict:
+        """Returns a list of positions matching the specified contract ID (conid) for the given account ID
+
+        :param accountId: Account ID
+        :type accountId: str
+        :param conid: Contract ID
+        :type conid: int
+        :return: List of positions
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}portfolio/{accountId}/position/{conid}", verify=self.ssl)
+        return response.json()
+
+    def get_account_trades(self) -> list:
+        """Returns a list of trades for the currently selected account
+
+        :return: List of trades
+        :rtype: list
+        """
+        response = requests.get(f"{self.url}iserver/account/trades", verify=self.ssl)
+        return response.json()
+
+    def preview_orders(self, account_id: str, order_info: dict) -> dict:
+        """Preview orders without actually submitting them and get commission information in the response
+
+        :param account_id: Account ID
+        :type account_id: str
+        :param order_info: Order information
+        :type order_info: dict
+        :return: Order preview information
+        :rtype: dict
+        """
+        endpoint = f"iserver/account/{account_id}/orders/whatif"
+        response = requests.post(f"{self.url}{endpoint}", json=order_info, verify=self.ssl)
+        return response.json()
+
+    def get_market_data(self, conids: str, fields: str, since: int = None) -> dict:
+        """Get market data for the given conids
+
+        :param conids: List of conids separated by comma
+        :type conids: str
+        :param fields: List of fields separated by comma
+        :type fields: str
+        :param since: Time period since which updates are required (epoch time with milliseconds), optional
+        :type since: int
+        :return: Market data for the given conids
+        :rtype: dict
+        """
+        params = {
+            "conids": conids,
+            "fields": fields
+        }
+        if since:
+            params["since"] = since
+        endpoint = "iserver/marketdata/snapshot"
+        response = requests.get(f"{self.url}{endpoint}", params=params, verify=self.ssl)
+        return response.json()
+
+    def cancel_market_data(self, conid: str) -> dict:
+        """Cancel market data for the given conid
+
+        :param conid: Contract ID
+        :type conid: str
+        :return: Confirmation of market data cancellation
+        :rtype: dict
+        """
+        endpoint = f"iserver/marketdata/{conid}/unsubscribe"
+        response = requests.get(f"{self.url}{endpoint}", verify=self.ssl)
+        return response.json()
+
+    def get_performance(self) -> dict:
+        """Returns the performance object
+
+        :return: Performance object
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}pa/performance", verify=self.ssl)
+        return response.json()
+
+    def get_transactions(self) -> dict:
+        """Returns the transactions object
+
+        :return: Transactions object
+        :rtype: dict
+        """
+        response = requests.get(f"{self.url}pa/transactions", verify=self.ssl)
+        return response.json()
+
+
 
     def reply_yes(self, id: str) -> dict:
         """
@@ -345,6 +572,7 @@ class REST:
         )
 
         return response.json()[symbol]
+
 
 
 if __name__ == "__main__":
